@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Aliz Pharma — Personal Invitation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Allura&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f1f4ef;color:#073f2b;font-family:Arial,sans-serif}.wrap{max-width:720px;margin:auto;padding:18px}.panel{background:white;border-radius:18px;padding:18px;box-shadow:0 8px 30px #0001;margin-bottom:18px}h1{font-size:22px;margin:0 0 6px}p{margin:6px 0 14px;color:#456}label{font-weight:700;display:block;margin:12px 0 6px}input{width:100%;padding:14px 15px;border:1px solid #b7c9bd;border-radius:12px;font-size:18px;outline:none}button{border:0;border-radius:12px;padding:13px 16px;font-weight:700;font-size:16px;margin:8px 6px 0 0;cursor:pointer;background:#075735;color:#fff}button.alt{background:#b88616}button.light{background:#e8efe9;color:#075735}.preview{background:#eee;padding:10px;border-radius:14px;text-align:center}.preview img{width:100%;max-width:633px;height:auto;display:block;margin:auto;border-radius:8px}.qrbox{text-align:center}.qrbox canvas{max-width:100%;height:auto}.small{font-size:13px;color:#667}.status{min-height:20px;font-size:14px;font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <h1>ALIZ PHARMA — Personal Invitation Generator</h1>
+    <p>Naam type karo. Same invitation design rahega; sirf guest ka naam change hoga.</p>
+    <label for="name">Guest ka naam</label>
+    <input id="name" placeholder="Jaise: Rahman" maxlength="40" autocomplete="name">
+    <button id="png">Download JPG/PNG</button>
+    <button id="pdf" class="alt">Download PDF</button>
+    <button id="share" class="light">Share</button>
+    <div id="status" class="status"></div>
+  </div>
+
+  <div class="panel preview"><canvas id="card" aria-label="Invitation preview"></canvas></div>
+
+  <div class="panel qrbox">
+    <h1>Ek hi QR Code</h1>
+    <p>Is website ko public hosting par lagane ke baad neeche apni website link daalo aur QR download karo. QR scan karte hi naam-entry page khulega.</p>
+    <input id="siteUrl" placeholder="https://aapki-site.example/">
+    <div id="qrcode" style="margin:14px auto;width:220px;min-height:10px"></div>
+    <button id="makeQr">QR Banao</button>
+    <button id="qrDownload" class="light">QR Download</button>
+    <p class="small">Note: local Termux address (localhost/127.0.0.1) ka QR dusre phone par kaam nahi karega. Public HTTPS URL chahiye.</p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const img = new Image();
+img.src = 'invitation-original.jpg';
+const canvas = document.getElementById('card');
+const ctx = canvas.getContext('2d');
+const nameInput = document.getElementById('name');
+const statusEl = document.getElementById('status');
+
+function drawCard(){
+  if(!img.naturalWidth) return;
+  canvas.width=img.naturalWidth; canvas.height=img.naturalHeight;
+  ctx.drawImage(img,0,0);
+  const name=(nameInput.value||'').trim();
+  if(name){
+    // Cover only the original guest-name area, leaving "Dear" and the underline visible.
+    // Coordinates are based on the supplied 633x1536 invitation image.
+    ctx.fillStyle='#fbfaf1';
+    ctx.fillRect(135,376,370,83);
+    ctx.strokeStyle='#123f31'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(142,449); ctx.lineTo(493,449); ctx.stroke();
+    ctx.fillStyle='#073f2b';
+    ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.font='64px Allura, cursive';
+    ctx.fillText(name,145,420);
+  }
+}
+img.onload=()=>{drawCard(); const params=new URLSearchParams(location.search); const n=params.get('name'); if(n){nameInput.value=n;drawCard();}};
+nameInput.addEventListener('input',drawCard);
+
+function setStatus(t){statusEl.textContent=t;setTimeout(()=>statusEl.textContent='',2500)}
+
+document.getElementById('png').onclick=()=>{
+  if(!nameInput.value.trim()) return setStatus('Pehle guest ka naam likho.');
+  const a=document.createElement('a');
+  a.download='Aliz-Pharma-Invitation-'+nameInput.value.trim().replace(/[^a-z0-9]+/gi,'-')+'.png';
+  a.href=canvas.toDataURL('image/png'); a.click(); setStatus('Card download ho gaya.');
+};
+
+document.getElementById('pdf').onclick=()=>{
+  if(!nameInput.value.trim()) return setStatus('Pehle guest ka naam likho.');
+  const {jsPDF}=window.jspdf;
+  const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const ratio=canvas.height/canvas.width;
+  const w=190, h=w*ratio;
+  pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',10,10,w,h);
+  pdf.save('Aliz-Pharma-Invitation-'+nameInput.value.trim().replace(/[^a-z0-9]+/gi,'-')+'.pdf');
+  setStatus('PDF download ho gaya.');
+};
+
+document.getElementById('share').onclick=async()=>{
+  if(!nameInput.value.trim()) return setStatus('Pehle guest ka naam likho.');
+  canvas.toBlob(async blob=>{
+    const file=new File([blob],'Aliz-Pharma-Invitation.png',{type:'image/png'});
+    if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({title:'Aliz Pharma Invitation',text:'Aliz Pharma Grand Opening Invitation',files:[file]});
+    }else{document.getElementById('png').click(); setStatus('Share supported nahi tha, image download kar di.');}
+  },'image/png');
+};
+
+document.getElementById('makeQr').onclick=()=>{
+  const url=document.getElementById('siteUrl').value.trim();
+  if(!url) return alert('Public website URL daalo.');
+  const box=document.getElementById('qrcode'); box.innerHTML='';
+  new QRCode(box,{text:url,width:220,height:220,correctLevel:QRCode.CorrectLevel.H});
+};
+
+document.getElementById('qrDownload').onclick=()=>{
+  const c=document.querySelector('#qrcode canvas');
+  if(!c) return alert('Pehle QR Banao dabao.');
+  const a=document.createElement('a');a.download='Aliz-Pharma-Invitation-QR.png';a.href=c.toDataURL('image/png');a.click();
+};
+</script>
+</body>
+</html>
